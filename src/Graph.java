@@ -1,6 +1,6 @@
 import java.util.ArrayList;
 
-public class Matrix {
+public class Graph {
     private int[][] adjazenzMatrix,
                     distanzMatrix,
                     wegMatrix;
@@ -29,7 +29,7 @@ public class Matrix {
      * @param adjazenzmatrix
      * @param knoten
      */
-    public Matrix(int[][] adjazenzmatrix, int knoten) {
+    public Graph(int[][] adjazenzmatrix, int knoten) {
         this.knoten = knoten;
         setAdjazenzMatrix(adjazenzmatrix);
         initBasics();
@@ -46,7 +46,7 @@ public class Matrix {
         berechneExzentrizitaeten();
         berechneRadius();
         berechneDurchmesser();
-        berechneZentrum();
+        berechneZentren();
         berechneKomponenten();
         berechneBruecken();
         berechneArtikulation();
@@ -110,7 +110,7 @@ public class Matrix {
                     if (adjazenzMatrix[i][j] != 0) {
                         distanzMatrix[i][j] = adjazenzMatrix[i][j];
                     } else {
-                        distanzMatrix[i][j] = -1; //wenn 0 dann kein Weg
+                        distanzMatrix[i][j] = -1;
                     }
                 }
             }
@@ -118,47 +118,45 @@ public class Matrix {
     }
 
     /**
-     * Multipliziert Matrix mit sich selbst (gewuenschte Potenz)
+     * Multipliziert Graph mit sich selbst (gewuenschte Potenz)
      * Wird für die Berechnung der Distanz und Wegmatrix gebraucht
      *
-     * gibt es in A^2 einen Weg dann [y][y] der Wegmatrix 1 und in der Distanzmatrix die Potenz 2
-     *
-     * @param matrix
+     * @param adjazenzMatrix
      * @param potenz
      * @return
      */
-    public int[][] multipliziereMatrizen(int[][] matrix, int potenz) {
+    public int[][] multipliziereMatrizen(int[][] adjazenzMatrix, int potenz) {
 
-        int[][] ergebnisMatrix = new int[matrix.length][matrix.length];
-        int[][] matrixKlon = matrix.clone();
+        int[][] potenzMatrix = new int[adjazenzMatrix.length][adjazenzMatrix.length];
+        int[][] ursprungsAdjazenzMatrix = adjazenzMatrix.clone();
 
         for (int s = potenz - 1; s > 0; s--) {
 
-            int summe = 0;
+            int skalarProdukt = 0;
 
-            for (int i = 0; i < matrix.length; i++) {
-                for (int j = i; j < matrix.length; j++) {
-                    for (int k = 0; k < matrix.length; k++) {
-                        summe += (matrix[i][k] * matrixKlon[k][j]);
+            for (int i = 0; i < adjazenzMatrix.length; i++) {
+                for (int j = i; j < adjazenzMatrix.length; j++) {
+                    for (int k = 0; k < adjazenzMatrix.length; k++) {
+                        skalarProdukt += (adjazenzMatrix[i][k] * ursprungsAdjazenzMatrix[k][j]);
                     }
                     if (i == j) {
-                        ergebnisMatrix[i][j] = summe;
+                        potenzMatrix[i][j] = skalarProdukt;
                     } else {
-                        ergebnisMatrix[i][j] = summe;
-                        ergebnisMatrix[j][i] = summe;
+                        potenzMatrix[i][j] = skalarProdukt;
+                        potenzMatrix[j][i] = skalarProdukt;
                     }
-                    summe = 0;
+                    skalarProdukt = 0;
                 }
             }
-            matrix = new int[matrixKlon.length][matrixKlon.length];
+            adjazenzMatrix = new int[ursprungsAdjazenzMatrix.length][ursprungsAdjazenzMatrix.length];
 
-            for (int x = 0; x < matrixKlon.length; x++) {
-                for (int y = 0; y < matrixKlon.length; y++) {
-                    matrix[y][x] = ergebnisMatrix[y][x];
+            for (int x = 0; x < ursprungsAdjazenzMatrix.length; x++) {
+                for (int y = 0; y < ursprungsAdjazenzMatrix.length; y++) {
+                    adjazenzMatrix[y][x] = potenzMatrix[y][x];
                 }
             }
         }
-        return ergebnisMatrix;
+        return potenzMatrix;
     }
 
     /**
@@ -182,19 +180,22 @@ public class Matrix {
      * Geht die Potenzen der Adjazenzmatrix durch bis zum Abbruchkriterium
      * Abbruchkriterium: keine 0er mehr vorhanden
      * Abbruchkriterium: n-1 Durchlaeufe -> groesste Weglaenge Anzahl der Knoten -1
+     *
+     * gibt es in A^2 einen Weg dann [x][y] der Wegmatrix 1 und in der Distanzmatrix die Potenz 2
      */
     public void berechneWegundDistanz() {
         // Beginn mit der zweiten Potenz
-        for (int i = 2; i <= knoten; i++) {
-            if (!isZusammenhaengend()) {
+        for (int i = 2; i <= knoten; i++) { //Abbruchkriterium Knoten n-1 Durchläufe
+
+            if (!isZusammenhaengend()) { //Abbruchkriterium Wegmatrix hat keine 0er
 
                 // Matrizenmultiplikation, bei Aenderungen wird die Potenz in die Distanzmatrix eingetragen
-                int[][] vergleichsMatrix = multipliziereMatrizen(adjazenzMatrix, i);
+                int[][] potenzMatrix = multipliziereMatrizen(adjazenzMatrix, i);
 
                 for (int j = 0; j < knoten; j++) {
                     for (int k = 0; k < knoten; k++) {
                         // Ueberpruefung ob Aenderungen vorhanden
-                        if (wegMatrix[j][k] == 0 && vergleichsMatrix[j][k] != 0) {
+                        if (wegMatrix[j][k] == 0 && potenzMatrix[j][k] != 0) {
                             wegMatrix[j][k] = 1;
                             if (!(j == k) && distanzMatrix[j][k] == -1) {
                                 //Potenz wird in die Distanzmatrix geschrieben
@@ -247,9 +248,10 @@ public class Matrix {
     }
 
     /**
-     * Zentrum = Exzentrizität gleich radius
+     * Zentrum = Knoten bei denen Exzentrizität gleich radius
+     *
      */
-    public void berechneZentrum() {
+    public void berechneZentren() {
 
         zentren = new ArrayList<>();
 
@@ -284,6 +286,7 @@ public class Matrix {
 
         komponenten = new ArrayList<>();
         komponentenAnzahl = 1;
+        // damit immer an der Diagonale entlang gegangen wird, wenn ueber der Diagonale ein 1er steht ist die Komponente im vorigen Schleifendurchlauf schon hinzugefuegt worden
         int counter = 0;
         //fuegt erste Zeile und damit Komponente hinzu
         komponenten.add(speichereKomponentenInArray(counter));
@@ -291,7 +294,7 @@ public class Matrix {
         if (!zusammenhang) {
             for (int i = 0; i < knoten; i++) {
                 for (int j = 0; j < knoten; j++) {
-                    if (wegMatrix[i][0] == 0 && j > counter && wegMatrix[i][j] == 1 && keineDoppelteZeile(i, counter)) {
+                    if (wegMatrix[i][0] == 0 && j > counter && wegMatrix[i][j] == 1 && keineDoppelteKomponente(i, counter)) {
                         komponentenAnzahl++;
                         counter = j;
                         j = knoten;
@@ -311,7 +314,7 @@ public class Matrix {
      * @param counter
      * @return boolean
      */
-    public boolean keineDoppelteZeile(int i, int counter) {
+    public boolean keineDoppelteKomponente(int i, int counter) {
         for (int j = 0; j <= counter; j++) {
             if (wegMatrix[i][j] == 1) {
                 return false;
@@ -380,7 +383,7 @@ public class Matrix {
 
     /**
      * Berechnung der Artikulationen
-     * Anzahl der Komponenten wird zwischen Ursprungsmatrix und neuer Matrix verglichen
+     * Anzahl der Komponenten wird zwischen Ursprungsmatrix und neuer Graph verglichen
      * Dazu werden bei einem Knoten Spalte und Zeile entfernt
      * Wenn dann mehr Komponenten vorhanden sind -> artikulationenAnzahl++ und artikulationen.add
      *
@@ -411,8 +414,8 @@ public class Matrix {
      */
     public int[][] entferneKnoten(int knoten) {
 
-        // Ausgabematrix
-        int[][] ergebnis = new int[adjazenzMatrix.length - 1][adjazenzMatrix.length - 1];
+        // Ausgabematrix ist um 1 kleiner
+        int[][] neueAdjazenzMatrix = new int[adjazenzMatrix.length - 1][adjazenzMatrix.length - 1];
         // Zaehler fuer Ausgabematrix i kann nicht verwendet werden da ergebnis -1 size hat.
         int counter = 0;
 
@@ -428,14 +431,14 @@ public class Matrix {
                         temp.add(adjazenzMatrix[i][j]);
                     }
                 }
-                // Uebergabe der Zeile aus dem Array zur Ergebnis Matrix
+                // Uebergabe der Zeile aus dem Array zur Ergebnis Graph
                 for (int s = 0; s < temp.size(); s++) {
-                    ergebnis[counter][s] = temp.get(s);
+                    neueAdjazenzMatrix[counter][s] = temp.get(s);
                 }
                 counter++;
             }
         }
-        return ergebnis;
+        return neueAdjazenzMatrix;
     }
 
     //TODO duplicated method
@@ -443,18 +446,18 @@ public class Matrix {
      * Hilfsmethode zur Berechnung einer Wegmatrix einer beliebigen Adjazenzmatrix
      * Initialisierung und Neuberechnung der Wegmatrix
      *
-     * @param adjazenzmatrix
+     * @param neueAdjazenzMatrix
      * @return
      */
-    public int[][] berechneWegmatrix(int[][] adjazenzmatrix) {
+    public int[][] berechneWegmatrix(int[][] neueAdjazenzMatrix) {
 
-        int[][] wegmatrix = new int[adjazenzmatrix.length][adjazenzmatrix.length];
+        int[][] wegmatrix = new int[neueAdjazenzMatrix.length][neueAdjazenzMatrix.length];
 
         // Erstellen der Wegmatrix
-        for (int i = 0; i < adjazenzmatrix.length; i++) {
-            for (int j = 0; j < adjazenzmatrix.length; j++) {
+        for (int i = 0; i < neueAdjazenzMatrix.length; i++) {
+            for (int j = 0; j < neueAdjazenzMatrix.length; j++) {
                 if (!(i == j)) {
-                    wegmatrix[i][j] = adjazenzmatrix[i][j];
+                    wegmatrix[i][j] = neueAdjazenzMatrix[i][j];
                 } else {
                     wegmatrix[i][j] = 1;
                 }
@@ -462,14 +465,14 @@ public class Matrix {
         }
 
         // Berechnen der Wegmatrix
-        for (int i = 2; i <= adjazenzmatrix.length; i++) {
+        for (int i = 2; i <= neueAdjazenzMatrix.length; i++) {
 
-            int[][] vergleichsMatrix = multipliziereMatrizen(adjazenzmatrix, i);
+            int[][] potenzMatrix = multipliziereMatrizen(neueAdjazenzMatrix, i);
 
-            for (int j = 0; j < adjazenzmatrix.length; j++) {
-                for (int k = 0; k < adjazenzmatrix.length; k++) {
+            for (int j = 0; j < neueAdjazenzMatrix.length; j++) {
+                for (int k = 0; k < neueAdjazenzMatrix.length; k++) {
                     // Ueberpruefung ob Aenderungen vorhanden sind
-                    if (wegmatrix[j][k] == 0 && vergleichsMatrix[j][k] != 0) {
+                    if (wegmatrix[j][k] == 0 && potenzMatrix[j][k] != 0) {
                         wegmatrix[j][k] = 1;
                     }
                 }
@@ -493,7 +496,7 @@ public class Matrix {
         if (!isZusammenhaengend(wegmatrix)) {
             for (int i = 0; i < wegmatrix.length; i++) {
                 for (int j = 0; j < wegmatrix.length; j++) {
-                    if (wegmatrix[i][0] == 0 && j > counter && wegmatrix[i][j] == 1 && keineDoppelteZeile(i, counter, wegmatrix)) {
+                    if (wegmatrix[i][0] == 0 && j > counter && wegmatrix[i][j] == 1 && keineDoppelteKomponente(i, counter, wegmatrix)) {
                         komponentenZahl++;
                         counter = j;
                         j = wegmatrix.length;
@@ -530,7 +533,7 @@ public class Matrix {
      * @param wegmatrix
      * @return
      */
-    public boolean keineDoppelteZeile(int i, int counter, int[][] wegmatrix) {
+    public boolean keineDoppelteKomponente(int i, int counter, int[][] wegmatrix) {
         for (int j = 0; j <= counter; j++) {
             if (wegmatrix[i][j] == 1) {
                 return false;

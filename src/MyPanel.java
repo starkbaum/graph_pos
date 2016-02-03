@@ -11,7 +11,7 @@ public class MyPanel extends JPanel {
                                 distanzButtons,
                                 wegButtons;
     private int knoten;
-    private Matrix matrix;
+    private Graph matrix;
     private JTextArea eigenschaften;
 
     public MyPanel(int knoten) {
@@ -42,7 +42,7 @@ public class MyPanel extends JPanel {
     }
 
     public void setMatrix() {
-        matrix = new Matrix(getMatrix(), knoten);
+        matrix = new Graph(getMatrix(), knoten);
     }
 
     public int[][] getMatrix() {
